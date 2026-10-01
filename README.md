@@ -8,7 +8,7 @@ This project delivers a fully autonomous workshop cell where four robot arms rep
 ## Group members
 
 | Name | Student number | Personal robot model | GitHub username |
-|------|----------------|----------------------|-----------------|
+| Jake Salamon | 25825771 | quality checker | JakeSalamon1 |
 | [Name 1] | [Number] | [Robot model] | [username] |
 | Muhammad Suhaib Khan | 13581525 | Robot 2 | muhammadskhan-hue |
 | [Name 3] | [Number] | [Robot model] | [username] |
