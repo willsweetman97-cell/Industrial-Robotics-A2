@@ -1,0 +1,21 @@
+# Core robotics
+roboticstoolbox-python
+spatialmath-python
+swift-sim
+
+# Numerics and plotting
+numpy
+scipy
+matplotlib
+
+# Optional: joystick/gamepad input
+pygame
+
+# Optional: serial connection to real robots / PLC
+pyserial
+
+# Testing
+pytest
+
+# NOTE: ir_support is supplied by the 41013 subject and is NOT listed here.
+# Do not commit it or any other installed packages to this repository.
