@@ -23,7 +23,7 @@ Plan written: Friday 2 October 2026. Final demo/viva: Friday 23 October 2026.
 | Member | Personal robot model | Main areas of ownership |
 |--------|---------------------|-------------------------|
 | Will Sweetman | Robot 3 | *(fill in – e.g. working robot, RMRC, safety state machine)* |
-| [Name 1] | [Robot model] | *(fill in)* |
+| Muhammad Suhaib Khan | Robot 2 | *(fill in)* |
 | [Name 2] | [Robot model] | *(fill in)* |
 
 Real robot: **[real robot name – TBC]**. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[attempting / not attempting]**.
