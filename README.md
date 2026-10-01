@@ -11,7 +11,7 @@ This project delivers a fully autonomous workshop cell where four robot arms rep
 |------|----------------|----------------------|-----------------|
 | [Name 1] | [Number] | [Robot model] | [username] |
 | [Name 2] | [Number] | [Robot model] | [username] |
-| [Name 3] | [Number] | [Robot model] | [username] |
+| Will Sweetman | 26089502 | robot 3 | willsweetman97 |
 
 ## Project description
 
