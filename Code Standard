@@ -1,0 +1,11 @@
+# Code Standard
+
+- **Style:** PEP 8. Max line length 100.
+- **Naming:** `snake_case` for functions and variables, `PascalCase` for classes, `UPPER_CASE` for constants.
+- **File header:** every file starts with a short docstring stating its purpose and author.
+- **Docstrings:** every function and class has one describing inputs, outputs and units (metres, radians).
+- **No blocking loops:** never use processor-blocking `while` loops for e-stop or recovery logic; use timers or the Swift step loop.
+- **Frames:** name transforms by frame, e.g. `T_world_base`, `T_base_tool`.
+- **Commits:** small and frequent, with clear messages (e.g. `Add DH parameters for robot 2`). Commit under your own GitHub account.
+- **Branches:** one branch per feature, merged by pull request.
+- **Do not commit:** virtual environments, installed toolboxes, caches, or third-party packages.
