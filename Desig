@@ -1,0 +1,32 @@
+# Design Overview
+
+## Scenario
+
+Three robots cooperate to deliver and use a tool:
+
+1. **Selector** – determines the required tool and picks it from the rack.
+2. **Delivery** – carries the tool to the working robot.
+3. **Worker** – performs the tool action (e.g. sawing wood).
+
+## Real robot
+
+- Robot: [name]
+- Role in the system: [which part of the workflow is reproduced physically]
+- Interface: [Python library / ROS / serial]
+
+## Safety measures (minimum three)
+
+- Simulated GUI e-stop and physical e-stop (reset, then separate resume)
+- Light curtain / unsafe-zone signal that pauses or slows motion
+- Collision prediction with stop or re-plan
+- Keep-out zones and safe-speed limits near the working robot
+
+## Planned techniques
+
+- Inverse kinematics and joint-space trajectories for pick and handover
+- RMRC for the straight cutting stroke
+- Collision checking against objects placed in the planned path
+
+## Open questions
+
+- [Add items to discuss with tutor]
