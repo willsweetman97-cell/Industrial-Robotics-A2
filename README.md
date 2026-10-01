@@ -10,8 +10,8 @@ This project delivers a fully autonomous workshop cell where four robot arms rep
 | Name | Student number | Personal robot model | GitHub username |
 |------|----------------|----------------------|-----------------|
 | [Name 1] | [Number] | [Robot model] | [username] |
-| [Name 2] | [Number] | [Robot model] | [username] |
-| Will Sweetman | 26089502 | robot 3 | willsweetman97 |
+| Muhammad Suhaib Khan | 13581525 | Robot 2 | muhammadskhan-hue |
+| [Name 3] | [Number] | [Robot model] | [username] |
 
 ## Project description
 
