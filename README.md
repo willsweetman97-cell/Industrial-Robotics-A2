@@ -1,7 +1,7 @@
 # Industrial-Robotics-A2
 This project delivers a fully autonomous workshop cell where four robot arms replace the human technician entirely. The system is fully state driven, with live GUI monitoring, safe zone logic, collision avoidance, and e-stop recovery throughout.
 
- [Project Title] – Pick-and-Place DoGoodBot
+ Mos Eisley Industries
 
 41013 Robotics – Lab Assignment 2
 
@@ -16,12 +16,12 @@ This project delivers a fully autonomous workshop cell where four robot arms rep
 SafeCo is investigating small robotic systems for homes, offices and workplaces.
 This project is a three-robot tool-handling workcell:
 
-1. **Selector robot** – identifies which tool the task needs (e.g. a saw) and picks it from the tool rack.
-2. **Delivery robot** – takes the tool from the selector and delivers it to the working robot.
-3. **Working robot** – uses the tool to perform the task (e.g. sawing a piece of wood).
+- a supplier arm delivers the next required tool or part to a staging zone, 
+- a retriever arm returns finished tools and clears completed parts, 
+- inspector/restocker arm checks condition and replenishes stock from bulk supply
+- fourth robot, a real UR3e collaborative arm, performs the actual trade task itself, such as driving a screw, using tooling delivered by the logistics arms.
 
-The robots share one simulated workcell built in Swift (Python). A real robot
-([real robot name]) reproduces [part of the workflow] and is controlled from Python.
+The robots share one simulated workcell built in Swift (Python). A real robot is controlled from Python.
 
 ## Key features
 
