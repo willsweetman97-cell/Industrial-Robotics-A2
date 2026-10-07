@@ -73,4 +73,4 @@ See [`docs/CODE_STANDARD.md`](docs/CODE_STANDARD.md).
 
 ## Contributions
 
-Each module lists its author in its file header. See [`docs/CONTRIBUTIONS.md`](docs/CONTRIBUTIONS.md).
+Each module lists its author in its file header. See [`docs/CONTRIBUTIONS.md`](https://github.com/willsweetman97-cell/Industrial-Robotics-A2/blob/7df74338d677ee52647767251ea93d0e2665b85c/Contributions).
