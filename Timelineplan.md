@@ -31,9 +31,9 @@ Real robot: UR3E. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[
 ## 3. Phased plan
 
 ### Phase 0 – Today (Fri 2 Oct): submit progress items
-- [ ] Safety documentation PDF signed by all members and submitted (one group submission)
-- [ ] Every member has regular, attributable commits on `main`/feature branches
-- [ ] Every member completes Spark+ feedback in their own words
+- [X] Safety documentation PDF signed by all members and submitted (one group submission)
+- [X] Every member has regular, attributable commits on `main`/feature branches
+- [X] Every member completes Spark+ feedback in their own words
 - [ ] Merge this timeline into `main`
 
 ### Phase 1 – Foundations (Sat 3 – Sun 11 Oct)
