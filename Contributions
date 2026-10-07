@@ -2,7 +2,7 @@
 
 | Area | Files / modules | Author |
 |------|-----------------|--------|
-| Robot model 1 | `src/models/[file]` | [Name 1] |
+| Robot model 1 | `/workspaces/Industrial-Robotics-A2/Robot 3/Robot_Sim` | Jake Salamon |
 | Robot model 2 | `src/models/[file]` | [Name 2] |
 | Robot model 3 | `src/models/[file]` | [Name 3] |
 | Workcell scene | `src/scene/` | [Name] |
