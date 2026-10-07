@@ -8,7 +8,9 @@ This project delivers a fully autonomous workshop cell where four robot arms rep
 ## Group members
 
 | Jake Salamon | 25825771 | quality checker | JakeSalamon1 |
+
 | Muhammad Suhaib Khan | 13581525 | Robot 2 | muhammadskhan-hue |
+
 | Will Sweetman | 26089502 | part mover | willsweetman97 |
 
 ## Project description
