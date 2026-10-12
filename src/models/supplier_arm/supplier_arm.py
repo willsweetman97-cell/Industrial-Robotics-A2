@@ -58,3 +58,9 @@ if __name__ == "__main__":
         sol = robot.ikine_LM(target, q0=q_guess, mask=[1, 1, 1, 0, 0, 0])
         status = "OK" if sol.success else "FAILED"
         print(f"  {name:12s}: {status}  (iterations: {sol.iterations})")
+
+    print("\nReachability check, handoff zone (gripper pointing down):")
+    handoff_zone = SE3(-0.925, -0.08, 0.75) * SE3.Rx(np.pi)
+    sol = robot.ikine_LM(handoff_zone, q0=q_guess)
+    status = "OK" if sol.success else "FAILED"
+    print(f"  handoff_zone: {status}  (iterations: {sol.iterations})")
