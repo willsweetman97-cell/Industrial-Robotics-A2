@@ -24,16 +24,16 @@ Plan written: Friday 2 October 2026. Final demo/viva: Friday 23 October 2026.
 |--------|---------------------|-------------------------|
 | Will Sweetman | Robot 3 | *(fill in – e.g. working robot, RMRC, safety state machine)* |
 | Muhammad Suhaib Khan | Robot 2 | *(fill in)* |
-| [Name 2] | [Robot model] | *(fill in)* |
+| Jake Salamon | Robot 3 | Robot that returns tools to shelf|
 
-Real robot: **[real robot name – TBC]**. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[attempting / not attempting]**.
+Real robot: UR3E. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[attempting / not attempting]**.
 
 ## 3. Phased plan
 
 ### Phase 0 – Today (Fri 2 Oct): submit progress items
-- [ ] Safety documentation PDF signed by all members and submitted (one group submission)
-- [ ] Every member has regular, attributable commits on `main`/feature branches
-- [ ] Every member completes Spark+ feedback in their own words
+- [X] Safety documentation PDF signed by all members and submitted (one group submission)
+- [X] Every member has regular, attributable commits on `main`/feature branches
+- [X] Every member completes Spark+ feedback in their own words
 - [ ] Merge this timeline into `main`
 
 ### Phase 1 – Foundations (Sat 3 – Sun 11 Oct)
