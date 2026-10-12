@@ -12,6 +12,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from roboticstoolbox import DHRobot, RevoluteDH
+from spatialmath import SE3
 import numpy as np
 from Garage import build_garage
 
@@ -41,3 +42,19 @@ if __name__ == "__main__":
     print("\nTool positions available:")
     for name, pose in poses["tools"].items():
         print(f"  {name}: {pose.t}")
+
+    q_guess = robot.qz
+
+    print("\nReachability check, full orientation constraint (gripper pointing down):")
+    for name, pose in poses["tools"].items():
+        target = SE3(pose.t) * SE3.Rx(np.pi)
+        sol = robot.ikine_LM(target, q0=q_guess)
+        status = "OK" if sol.success else "FAILED"
+        print(f"  {name:12s}: {status}  (iterations: {sol.iterations})")
+
+    print("\nReachability check, position-only (orientation free):")
+    for name, pose in poses["tools"].items():
+        target = SE3(pose.t)
+        sol = robot.ikine_LM(target, q0=q_guess, mask=[1, 1, 1, 0, 0, 0])
+        status = "OK" if sol.success else "FAILED"
+        print(f"  {name:12s}: {status}  (iterations: {sol.iterations})")
