@@ -20,12 +20,12 @@ from Garage import build_garage
 class SupplierArm(DHRobot):
     def __init__(self):
         links = [
-            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi/2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
-            RevoluteDH(d=0.00, a=0.50, alpha=0,         qlim=[-np.deg2rad(90),  np.deg2rad(90)]),
-            RevoluteDH(d=0.00, a=0.45, alpha=0,         qlim=[-np.deg2rad(150), np.deg2rad(150)]),
-            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi/2, qlim=[-np.pi, np.pi]),
-            RevoluteDH(d=0.00, a=0.00, alpha=np.pi/2,   qlim=[-np.deg2rad(120), np.deg2rad(120)]),
-            RevoluteDH(d=0.10, a=0.00, alpha=0,         qlim=[-2*np.pi, 2*np.pi]),
+            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
+            RevoluteDH(d=0.00, a=0.50, alpha=0,          qlim=[-np.deg2rad(90), np.deg2rad(90)]),
+            RevoluteDH(d=0.00, a=0.45, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),
+            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.pi, np.pi]),
+            RevoluteDH(d=0.00, a=0.00, alpha=np.pi / 2,  qlim=[-np.deg2rad(120), np.deg2rad(120)]),
+            RevoluteDH(d=0.10, a=0.00, alpha=0,          qlim=[-2 * np.pi, 2 * np.pi]),
         ]
         super().__init__(links, name="SupplierArm")
         self.qz = np.zeros(6)
@@ -35,8 +35,25 @@ if __name__ == "__main__":
     robot = SupplierArm()
     print(robot)
 
-    env, poses = build_garage(launch=False)
+    objs, poses = build_garage(launch=False)
     robot.base = poses["selector"]
+    robot.q = robot.qz
+
+    import swift
+    env = swift.Swift()
+    try:
+        env.launch(realtime=True, headless=True, ground_opacity=0.0)
+    except TypeError:
+        try:
+            env.launch(realtime=True, headless=True)
+        except TypeError:
+            env.launch(realtime=True)
+
+    for o in objs:
+        env.add(o)
+    env.add(robot)
+    env.step()
+
     print("\nSupplier arm base set to:", robot.base)
 
     print("\nTool positions available:")
@@ -64,3 +81,5 @@ if __name__ == "__main__":
     sol = robot.ikine_LM(handoff_zone, q0=q_guess)
     status = "OK" if sol.success else "FAILED"
     print(f"  handoff_zone: {status}  (iterations: {sol.iterations})")
+
+    env.hold()
