@@ -1,0 +1,137 @@
+"""Emergency-stop inputs: the on-screen (simulated) button and the physical PLC mushroom button.
+
+Author: [Your name]
+
+The physical e-stop in the teaching workcell is wired to the PLC. This file reads it over Modbus TCP
+(the most common PLC protocol; needs `pip install pymodbus`). If your PLC uses something else
+(OPC UA, Siemens S7, serial...), write another class with the same poll() method.
+
+EDUCATIONAL USE ONLY: reading a PLC input from a PC is NOT a certified safety function and does not
+replace the laboratory's approved risk controls or the hard-wired e-stop circuit.
+
+Fail-safe: if the PLC cannot be reached, or the last good reading is older than STALE_AFTER seconds,
+the input is reported as "unhealthy" and the workcell treats it exactly like a pressed e-stop.
+The reader runs in its own thread that sleeps between reads (Event.wait), so it never hogs the CPU
+or blocks the GUI.
+"""
+from __future__ import annotations
+
+import threading
+import time
+
+STALE_AFTER = 0.5     # s without a good reading -> treat as stopped
+
+
+class EStopReading:
+    def __init__(self, pressed, healthy, text):
+        self.pressed, self.healthy, self.text = pressed, healthy, text
+
+    @property
+    def stop(self):
+        return self.pressed or not self.healthy
+
+
+class SimulatedEStop:
+    """The on-screen mushroom button. press() latches it; release() lets go (it does NOT restart anything)."""
+    name = "GUI e-stop"
+
+    def __init__(self):
+        self.pressed = False
+
+    def press(self):
+        self.pressed = True
+
+    def release(self):
+        self.pressed = False
+
+    def poll(self):
+        return EStopReading(self.pressed, True, "pressed" if self.pressed else "released")
+
+
+class NoPlcEStop:
+    """Placeholder shown until a PLC is connected. Never stops anything."""
+    name = "PLC e-stop"
+
+    def poll(self):
+        return EStopReading(False, True, "not connected")
+
+
+class ModbusEStop:
+    """Reads one discrete input / coil from the PLC every `period` seconds.
+
+    active_low=True is the usual wiring for a mushroom button with a normally-closed contact:
+    the input reads 1 while the circuit is healthy and 0 when the button is pressed (or a wire breaks).
+    """
+    name = "PLC e-stop"
+
+    def __init__(self, host, port=502, address=0, unit=1, kind="discrete", active_low=True,
+                 period=0.02, client_factory=None):
+        self.host, self.port, self.address, self.unit = host, port, address, unit
+        self.kind, self.active_low, self.period = kind, active_low, period
+        self._factory = client_factory
+        self._lock = threading.Lock()
+        self._pressed, self._last_good, self._error = False, 0.0, "connecting..."
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="plc-estop", daemon=True)
+        self._thread.start()
+
+    def close(self):
+        self._stop.set()
+
+    # --- background reader -------------------------------------------------
+    def _make_client(self):
+        if self._factory:
+            return self._factory()
+        from pymodbus.client import ModbusTcpClient          # imported late so the GUI works without it
+        return ModbusTcpClient(self.host, port=self.port, timeout=0.3)
+
+    def _read_bit(self, client):
+        read = client.read_discrete_inputs if self.kind == "discrete" else client.read_coils
+        for kw in ({"slave": self.unit}, {"device_id": self.unit}, {"unit": self.unit}, {}):   # pymodbus versions differ
+            try:
+                reply = read(self.address, count=1, **kw)
+                break
+            except TypeError:
+                continue
+        else:
+            raise RuntimeError("unsupported pymodbus version")
+        if reply.isError():
+            raise RuntimeError(str(reply))
+        return bool(reply.bits[0])
+
+    def _run(self):
+        client = None
+        while not self._stop.wait(self.period):             # sleeps between reads: no busy loop
+            try:
+                if client is None:
+                    client = self._make_client()
+                    if not client.connect():
+                        client = None
+                        raise ConnectionError(f"cannot connect to {self.host}:{self.port}")
+                bit = self._read_bit(client)
+                pressed = (not bit) if self.active_low else bit
+                with self._lock:
+                    self._pressed, self._last_good, self._error = pressed, time.monotonic(), ""
+            except Exception as exc:                          # any failure = unhealthy (fail-safe)
+                with self._lock:
+                    self._error = str(exc)
+                try:
+                    if client is not None:
+                        client.close()
+                except Exception:
+                    pass
+                client = None
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+    # --- called from the GUI tick ------------------------------------------
+    def poll(self):
+        with self._lock:
+            pressed, age, error = self._pressed, time.monotonic() - self._last_good, self._error
+        healthy = age < STALE_AFTER and not error
+        if not healthy:
+            return EStopReading(False, False, f"COMMS LOST ({error or 'no data'})")
+        return EStopReading(pressed, True, "PRESSED" if pressed else "released")
