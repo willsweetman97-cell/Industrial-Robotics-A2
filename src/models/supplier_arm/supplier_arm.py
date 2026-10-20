@@ -4,7 +4,7 @@ Original 6-DoF design, dimensions justified by the task geometry in Garage.py:
  - base at x=-1.40, y=0.22, z=0.75 (table height), near the pegboard
  - must reach pegboard tools up to ~1.11 m away, at z ~1.38-1.40 m
  - must reach handoff zone at approx (-0.925, -0.08, 0.75), ~0.56 m away
-Author: Will Sweetman
+Author: Muhammad Suhaib Khan
 """
 
 import sys
