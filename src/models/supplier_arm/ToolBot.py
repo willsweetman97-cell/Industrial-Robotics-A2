@@ -6,7 +6,7 @@ Original 6-DoF design, dimensions justified by the task geometry in Garage.py:
  - must reach handoff zone at approx (-0.925, -0.08, 0.75), ~0.56 m away
  - shoulder (joint 2) limited to +/-150 deg so the arm can reach the saw at the far end of the tool wall
 Task: pick the requested tool from the pegboard and deliver it to the handoff zone.
-Author: Will Sweetman
+Author: Muhammad Suhaib Khan
 """
 
 import sys
