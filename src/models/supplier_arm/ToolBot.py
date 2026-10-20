@@ -21,7 +21,7 @@ class SupplierArm(DHRobot):
     def __init__(self):
         links = [
             RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
-            RevoluteDH(d=0.00, a=0.50, alpha=0,          qlim=[-np.deg2rad(90), np.deg2rad(90)]),
+            RevoluteDH(d=0.00, a=0.50, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),
             RevoluteDH(d=0.00, a=0.45, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),
             RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.pi, np.pi]),
             RevoluteDH(d=0.00, a=0.00, alpha=np.pi / 2,  qlim=[-np.deg2rad(120), np.deg2rad(120)]),
