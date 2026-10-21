@@ -1,6 +1,6 @@
 """Layout constants for the Robot 2 bench-and-board patch.
 
-Author: [Your name]
+Author: Jake Salamon
 
 World frame (metres): origin at the centre of the BLUE mark on the bench top,
 x to the robot's right, y toward the board, z up. Robot 2 is mounted on the blue
