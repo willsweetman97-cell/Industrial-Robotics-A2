@@ -1,6 +1,6 @@
 """One big simulation: ToolBot, TransferBot, the UR3e and SupplyBot working a tool pipeline.
 
-Author: [Your name]
+Author: Jake Salamon
 
 Run:   python big_sim.py   (all project files sit in the same folder)
 
