@@ -1,6 +1,6 @@
 """Robot 2 task helpers: pick tool from the green mark, hang it on the board.
 
-Author: [Your name]
+Author: Jake Salamon
 
 Poses come from layout.py (world frame, metres, origin at the blue mark).
 All moves use quintic time scaling, so every segment starts and ends at rest with no
