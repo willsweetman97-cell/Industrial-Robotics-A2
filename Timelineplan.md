@@ -22,11 +22,11 @@ Plan written: Friday 2 October 2026. Final demo/viva: Friday 23 October 2026.
 
 | Member | Personal robot model | Main areas of ownership |
 |--------|---------------------|-------------------------|
-| Will Sweetman | Robot 3 | *(fill in – e.g. working robot, RMRC, safety state machine)* |
-| Muhammad Suhaib Khan | Robot 2 | *(fill in)* |
-| Jake Salamon | Robot 3 | Robot that returns tools to shelf|
+| Will Sweetman | TransferBot | Garage layouts, safety implementations |
+| Muhammad Suhaib Khan | ToolBot | Selects correct tool for the task, gives it to TransferBot, puts tools back when done. |
+| Jake Salamon | SupplyBot |Code Fixing, Ur3e implementation, final simulation|
 
-Real robot: UR3E. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[attempting / not attempting]**.
+Real robot: UR3E. PLC bonus: **[attempting]**. RGB-D bonus: **[not attempting]**.
 
 ## 3. Phased plan
 
@@ -34,15 +34,15 @@ Real robot: UR3E. PLC bonus: **[attempting / not attempting]**. RGB-D bonus: **[
 - [X] Safety documentation PDF signed by all members and submitted (one group submission)
 - [X] Every member has regular, attributable commits on `main`/feature branches
 - [X] Every member completes Spark+ feedback in their own words
-- [ ] Merge this timeline into `main`
+- [X] Merge this timeline into `main`
 
 ### Phase 1 – Foundations (Sat 3 – Sun 11 Oct)
 Goal: a runnable skeleton that every member can build on.
-- [ ] `src/main.py` entry point launches Swift with an empty workcell
-- [ ] Agree the shared world frame and base poses for all robots, tools and surfaces (document in `docs/`)
-- [ ] Each member: kinematic parameters sourced/justified for their personal robot; tutor sign-off on the model
-- [ ] Each member: first working model in `src/models/` (DH parameters, joint limits, correct `fkine`)
-- [ ] Scene v1: tool rack, workpiece, work surfaces and robot bases placed
+- [X] `src/main.py` entry point launches Swift with an empty workcell
+- [X] Agree the shared world frame and base poses for all robots, tools and surfaces (document in `docs/`)
+- [X] Each member: kinematic parameters sourced/justified for their personal robot; tutor sign-off on the model
+- [X] Each member: first working model in `src/models/` (DH parameters, joint limits, correct `fkine`)
+- [X] Scene v1: tool rack, workpiece, work surfaces and robot bases placed
 - [ ] E-stop state machine designed (states: RUNNING, STOPPED/FAULT, RESET-ACKNOWLEDGED, READY, RESUME) – event/timer driven, no busy-wait loops
 - [ ] Real robot: confirm availability, induction status, booking times (drop-ins TBC)
 - [ ] Code standard and `docs/CONTRIBUTIONS.md` filled in
