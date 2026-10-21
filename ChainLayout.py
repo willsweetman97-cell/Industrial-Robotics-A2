@@ -1,6 +1,6 @@
 """Layout constants for the ToolBot -> TransferBot hand-over chain, built on Garage.py.
 
-Author: [Your name]
+Author: Jake Salamon
 
 ToolBot (blue square) takes the requested tool off the pegboard and puts it on the first
 hand-over square (the "supply" mark). TransferBot (yellow square) moves it to the second
