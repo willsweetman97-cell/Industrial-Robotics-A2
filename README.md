@@ -18,9 +18,9 @@ MinionBots
 SafeCo is investigating small robotic systems for homes, offices and workplaces.
 This project is a three-robot tool-handling workcell:
 
-- a supplier arm delivers the next required tool or part to a staging zone, 
-- a retriever arm returns finished tools and clears completed parts, 
-- inspector/restocker arm checks condition and replenishes stock from bulk supply
+- ToolBot: Selects correct tool, passes it to TransferBot. Puts it back after use.
+- TransferBot: takes tools from ToolBot and hands it to the Ur3e. Hands it back after use
+- SupplyBot: gives Ur3e nuts/bolts/screws if needed
 - fourth robot, a real UR3e collaborative arm, performs the actual trade task itself, such as driving a screw, using tooling delivered by the logistics arms.
 
 The robots share one simulated workcell built in Swift (Python). A real robot is controlled from Python.
