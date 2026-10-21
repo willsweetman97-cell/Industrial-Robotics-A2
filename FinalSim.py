@@ -6,7 +6,7 @@ Run:   python big_sim.py   (all project files sit in the same folder)
 
 Uses the garage table from Garage.py (unchanged) plus one extra green "used tools" mark
 (drawn here) between ToolBot and TransferBot. It asks what the real robot should do
-(sawing / drilling and screwing / both) and whether it needs a nut and bolt, then runs the
+(sawing / drilling and screwing / both) and whether it needs a nut and bolt (and a screw), then runs the
 robots, and the whole job then runs in one go (no Enter presses). For a job with tools [A, B]:
   1. ToolBot (blue)      takes A off the pegboard and puts it on the first green mark
   2. TransferBot (yellow) carries A to the second green mark, where the real robot uses it
@@ -15,8 +15,10 @@ robots, and the whole job then runs in one go (no Enter presses). For a job with
   4. TransferBot puts the used A on the "used tools" mark
   5. TransferBot carries B to the real robot, while ToolBot hangs A back on the pegboard
      (the two run together only if their arms stay clear of each other)
-  ...and so on for the next tool. SupplyBot (red) supplies the nut and bolt (if needed) while
-  the first tool is being fetched, and carries the finished piece away at the end.
+  ...and so on for the next tool. SupplyBot (red) supplies the nut and bolt (if needed) while the first
+  tool is being fetched. The drill leaves a hole in the timber; once it is drilled SupplyBot stands the
+  screw in the hole, and the UR3e's screwdriver turns it in. At the end SupplyBot carries the finished
+  piece away.
 """
 import sys
 import time
@@ -45,7 +47,7 @@ from ToolBot import SupplierArm
 from tools import ToolModel
 from TransferBot import GRIP_CENTRE, OPEN_WIDTH, Gripper, PartMover
 
-SIM_VERSION = "v5 - one continuous run, no Enter between steps"
+SIM_VERSION = "v7 - drilled hole; SupplyBot stands the screw in it and the UR3e drives it in"
 PLAYBACK_SPEED = 1.0   # 1.0 = planned speed; 0.7 = slower; 1.5 = faster
 RENDER_FPS = 25        # frames sent to Swift per second (lower if you see connection errors)
 JOINT_SPEED = 0.9      # average joint speed for joint moves (rad/s)
@@ -57,6 +59,7 @@ SMALL_HOVER = 0.08     # hover height above a nut, bolt or the timber (m)
 BOX_HOVER = 0.20       # hover height above the output spot (m)
 CLOSED_WIDTH = 0.03    # TransferBot's finger gap when holding a tool (m)
 POSITION_TOL = 0.005   # a straight-line move must end within 5 mm of its target (m)
+IDLE_MARGIN = 0.09     # SupplyBot keeps this far from the UR3e standing at its ready pose (m)
 PARALLEL_MARGIN = 0.14 # two arms running together must stay at least this far apart (m)
 # The saw hangs at the far end of the pegboard. With tool_bot.py's shoulder (joint 2) limited to +-90
 # degrees ToolBot misses it by ~4 cm; +-150 degrees reaches it. This widens the limit in the simulation
@@ -87,8 +90,10 @@ def above(T, h):
 class Planner:
     """Builds one robot's task as a list of stage dicts."""
 
-    def __init__(self, robot, q_home, gripper=False):
+    def __init__(self, robot, q_home, gripper=False, avoid=None):
+        """avoid: skeletons (lists of points, see arm_points) of arms standing still that this arm must keep clear of."""
         self.robot, self.gripper = robot, gripper
+        self.avoid = avoid or []
         self.q = np.array(q_home, dtype=float)
         self.home = self.q.copy()
         self.stages = []
@@ -117,6 +122,17 @@ class Planner:
         self.add(label, traj, **extra)
         return True
 
+    def _clear_of_idle(self, traj, stride=4):
+        """True if the arm keeps IDLE_MARGIN away from every arm it has to avoid along the whole trajectory."""
+        for q in traj[::stride]:
+            mine = arm_points(self.robot, q)
+            for idle in self.avoid:
+                for i in range(len(mine) - 1):
+                    for j in range(len(idle) - 1):
+                        if _segment_distance(mine[i], mine[i + 1], idle[j], idle[j + 1]) < IDLE_MARGIN:
+                            return False
+        return True
+
     def descend(self, joint_label, T_hover, line_label, T_end, joint_extra=None, line_extra=None, tries=8):
         """Joint move to T_hover, then a straight line to T_end.
 
@@ -133,7 +149,7 @@ class Planner:
                 continue
             line = rmrc_line(robot, T_end, q_goal, speed=CART_SPEED, quiet=True)      # the final straight move
             miss = float(np.linalg.norm(T_end.t - robot.fkine(line[-1]).t))
-            if miss > POSITION_TOL or not path_collision_free(robot, line):
+            if miss > POSITION_TOL or not path_collision_free(robot, line) or not self._clear_of_idle(line):
                 continue                                                          # this arm configuration cannot finish it
             tried += 1
             if tried > tries:
@@ -143,7 +159,7 @@ class Planner:
                 for q_to in route:
                     trajs.append(joint_move(q_from, q_to, speed=JOINT_SPEED))
                     q_from = q_to
-                if all(path_collision_free(robot, t) for t in trajs):
+                if all(path_collision_free(robot, t) and self._clear_of_idle(t) for t in trajs):
                     for n, traj in enumerate(trajs):
                         self.add(joint_label if n == len(trajs) - 1 else f"{joint_label} (first leg)",
                                  traj, **joint_extra)
@@ -219,14 +235,15 @@ TOOL_ACTIONS = {
 }
 
 
-def plan_real_robot(robot, tool):
+def plan_real_robot(robot, tool, screw=None):
     """UR3e: take the tool from the second hand-over square, saw / drill / screw the timber, put it back."""
     p = Planner(robot, robot.home_q)
     verb = TASK_VERB.get(tool, "working")
     pick = C.tool_on_square(tool, 2)
     grasp = pick * C.UR_GRASP
     carry = {"carry": tool, "attached": (), "tcp_obj": C.UR_GRASP.inv()}
-    path = [T * C.UR_GRASP for T in C.real_robot_path(tool)]
+    path = [T * C.UR_GRASP for T in C.real_robot_path(tool, screw)]
+    motion = C.screw_motion(screw) if (tool == "screwdriver" and screw) else None
     if not p.descend(f"above {tool}", above(grasp, UR_HOVER), f"down to {tool}", grasp):
         return None
     p.pause(f"grip {tool}", 0.4)
@@ -236,7 +253,12 @@ def plan_real_robot(robot, tool):
                      joint_extra=carry, line_extra=carry):
         return None
     for n, T in enumerate(path[2:], 1):
-        if not p.line_to(f"{verb} {n}", T, **carry):
+        extra = dict(carry)
+        if tool == "drill" and n == 2:             # the bit comes back up out of its first hole: show the hole
+            extra["drive"] = ("hole", S.hole_pose(), S.hole_pose())
+        if motion and n >= 2:                      # each screwing stroke turns the screw and sinks it in
+            extra["drive"] = ("screw",) + motion[n - 2]
+        if not p.line_to(f"{verb} {n}", T, **extra):
             return None
     if not p.line_to("lift off the timber", path[0], **carry):
         return None
@@ -250,13 +272,13 @@ def plan_real_robot(robot, tool):
     return p.stages
 
 
-def plan_tool_action(robot, kind, tool):
+def plan_tool_action(robot, kind, tool, screw=None):
     """Stages for one tool action. The robot starts and ends at home, so actions chain."""
     who, poses, text = TOOL_ACTIONS[kind]
     if who == "UR3e":
         print(f"  {who}: {text.format(t=tool)}")
         set_collision_limits(floor_z=C.TABLE_H + 0.03, wall_y=10.0)
-        return plan_real_robot(robot, tool)
+        return plan_real_robot(robot, tool, screw)
     if who == "ToolBot":
         set_collision_limits(floor_z=C.TABLE_H + 0.03, wall_y=Garage.TOOL_FACE_Y - 0.06)
         hover = HOVER
@@ -272,40 +294,66 @@ def plan_tool_action(robot, kind, tool):
     return p.stages
 
 
-def plan_job_tools(robots, tools):
+def plan_job_tools(robots, tools, screw=None):
     """Plan every tool action the job needs. Returns ({(kind, tool): stages}, None) or (None, error text)."""
     plans = {}
     for kind in ("fetch", "return", "use", "deliver", "retire"):  # ToolBot first: it is the fussiest
         for tool in tools:
-            stages = plan_tool_action(robots[TOOL_ACTIONS[kind][0]], kind, tool)
+            stages = plan_tool_action(robots[TOOL_ACTIONS[kind][0]], kind, tool, screw)
             if stages is None:
                 return None, f"{TOOL_ACTIONS[kind][0]} cannot {TOOL_ACTIONS[kind][2].format(t=tool)}"
             plans[(kind, tool)] = stages
     return plans, None
 
 
-def plan_supplybot(robot, sizes):
-    """SupplyBot: nut and bolt to the timber (if needed), then the finished timber away.
+def plan_supplybot(robot, sizes, idle_arms=()):
+    """SupplyBot's three jobs, each starting and ending at its ready pose.
 
-    Returns a list of (step name, stages, wait message).
+    "hardware": the nut and bolt to the timber (during the first tool fetch);
+    "screw":    the screw from its box into the hole the real robot has drilled;
+    "collect":  the finished timber (with everything on or in it) to the output box.
+    If the job drills a hole it travels with the timber too.
+    idle_arms: robots standing at their ready pose while SupplyBot works (the UR3e); SupplyBot keeps clear of
+    them if it can find a way to.
+    Returns {name: (step title, stages, wait message) or None}, or None if something is unreachable.
     """
+    avoid = [arm_points(r, r.home_q) for r in idle_arms]
+    steps = _plan_supplybot(robot, sizes, avoid)
+    if steps is None and avoid:
+        print("  (SupplyBot cannot keep clear of the UR3e on every move - planning again without that check.)")
+        steps = _plan_supplybot(robot, sizes, [])
+    return steps
+
+
+def _plan_supplybot(robot, sizes, avoid):
     set_collision_limits(floor_z=S.FLOOR_LIMIT_Z, wall_y=S.WALL_LIMIT_Y)
-    steps = []
+    steps = {"hardware": None, "screw": None, "collect": None}
     attached = ()
     if sizes is not None:
-        p = Planner(robot, robot.home_q)
-        for kind, start, end in (("nut", S.nut_start(sizes["nut"]), S.nut_on_wood(sizes["nut"])),
-                                 ("bolt", S.bolt_start(sizes["bolt"]), S.bolt_on_wood(sizes["bolt"]))):
-            if not p.move_object(kind, start, end, S.GRIP_TO_OBJ, SMALL_HOVER, SMALL_HOVER):
+        loose = S.loose_hardware(sizes)
+        if loose:
+            p = Planner(robot, robot.home_q, avoid=avoid)
+            for kind, size in loose:
+                if not p.move_object(kind, S.start_pose(kind, size), S.on_wood(kind, size),
+                                     S.grasp_rot(kind, size), SMALL_HOVER, SMALL_HOVER):
+                    return None
+            p.go_home()
+            steps["hardware"] = (f"supply the {S.describe({k: sz for k, sz in loose})}", p.stages, None)
+        if "screw" in sizes:
+            size = sizes["screw"]
+            p = Planner(robot, robot.home_q, avoid=avoid)
+            if not p.move_object("screw", S.start_pose("screw", size), S.on_wood("screw", size),
+                                 S.grasp_rot("screw", size), SMALL_HOVER, SMALL_HOVER):
                 return None
-        p.go_home()
-        steps.append((f"supply the {sizes['nut']} nut and {sizes['bolt']} bolt", p.stages, None))
-        attached = ("nut", "bolt")
-    p = Planner(robot, robot.home_q)
+            p.go_home()
+            steps["screw"] = (f"put the {size} screw in the drilled hole", p.stages, None)
+        attached = tuple(kind for kind, _ in S.hardware(sizes))
+    attached += ("hole",)                      # only moved if the job has drilled it (see flatten)
+    p = Planner(robot, robot.home_q, avoid=avoid)
     if not p.move_object("wood", S.WOOD_START, S.WOOD_IN_BOX, S.GRIP_TO_OBJ, SMALL_HOVER, BOX_HOVER, attached):
         return None
     p.go_home()
-    steps.append(("collect the finished piece", p.stages, None))
+    steps["collect"] = ("collect the finished piece", p.stages, None)
     return steps
 
 
@@ -324,11 +372,17 @@ def flatten(stages, robot, state, width):
         ease = quintic(len(traj))
         rel = {}
         if carry:
-            rel = {a: state[carry].inv() * state[a] for a in st["attached"]}
+            rel = {a: state[carry].inv() * state[a] for a in st["attached"] if a in state}
             touched += [n for n in (carry, *rel) if n not in touched]
         start_width, target = width, st["grip"]
+        drive = st.get("drive")                    # (object, pose before, pose after): an object moved by the tool, not carried
+        if drive and drive[0] not in touched:
+            touched.append(drive[0])
         for i, q in enumerate(traj):
             poses = {}
+            if drive:
+                state[drive[0]] = drive[1].interp(drive[2], float(ease[i]))
+                poses[drive[0]] = state[drive[0]].A.copy()
             if carry:
                 held = robot.fkine(q) * st["tcp_obj"]
                 obj = held.interp(st["ease_to"], float(ease[i])) if st["ease_to"] is not None else held
@@ -513,17 +567,28 @@ def ask_job_type(options):
     return names[int(answer) - 1] if answer.isdigit() else answer
 
 
-def ask_job():
-    """Nut and bolt questions. Returns {'nut': size, 'bolt': size}, or None for no hardware."""
-    needs = ask_choice("Does the real robot need a nut and bolt? (y/n): ", ["y", "yes", "n", "no"])
-    if needs in ("n", "no"):
-        print("  No hardware needed. SupplyBot will wait for the real robot, then take the piece.")
-        return None
+def screw_possible(tools):
+    """A screw needs a drilled hole and the screwdriver to turn it in afterwards."""
+    return "drill" in tools and "screwdriver" in tools and tools.index("drill") < tools.index("screwdriver")
+
+
+def ask_job(tools):
+    """Nut / bolt and screw questions. Returns {'nut':.., 'bolt':.., 'screw':..} (only what is needed), or None."""
+    sizes = {}
     options = list(S.SIZES)
-    nut = ask_choice(f"  Which size NUT? ({' / '.join(options)}): ", options)
-    bolt = ask_choice(f"  Which size BOLT? ({' / '.join(options)}, Enter = same as nut): ", options, default=nut)
-    print(f"  Supplying the {nut} nut and the {bolt} bolt.")
-    return {"nut": nut, "bolt": bolt}
+    if ask_choice("Does the real robot need a nut and bolt? (y/n): ", ["y", "yes", "n", "no"]) in ("y", "yes"):
+        nut = ask_choice(f"  Which size NUT? ({' / '.join(options)}): ", options)
+        bolt = ask_choice(f"  Which size BOLT? ({' / '.join(options)}, Enter = same as nut): ", options, default=nut)
+        sizes.update(nut=nut, bolt=bolt)
+    if not screw_possible(tools):
+        print("  (A screw goes into a drilled hole, so it is only offered for the drilling and screwing job.)")
+    elif ask_choice("Does the real robot need a screw in the drilled hole? (y/n): ", ["y", "yes", "n", "no"]) in ("y", "yes"):
+        sizes["screw"] = ask_choice(f"  Which size SCREW? ({' / '.join(options)}): ", options)
+    if not sizes:
+        print("  No hardware needed. SupplyBot will just take the finished piece away.")
+        return None
+    print(f"  Supplying the {S.describe(sizes)}.")
+    return sizes
 
 
 def pick_home(robot, candidates_deg, label):
@@ -541,9 +606,9 @@ def check_files():
     stale = []
     if "v9" not in getattr(_task, "VERSION", ""):
         stale.append("robot2_task.py")
-    if "tool_saw" not in _tools.TOOL_PARTS:
+    if "tool_saw" not in _tools.TOOL_PARTS or "screw_large" not in _tools.TOOL_PARTS:
         stale.append("tools.py")
-    if not hasattr(S, "FLOOR_LIMIT_Z"):
+    if not hasattr(S, "FLOOR_LIMIT_Z") or not hasattr(S, "hardware"):
         stale.append("supply_layout.py")
     if not hasattr(C, "UR_GRASP") or not hasattr(C, "real_robot_path"):
         stale.append("chain_layout.py")
@@ -590,21 +655,21 @@ def make_step(title, tracks, wait_msg=None):
 
 
 def build_schedule(tools, plans, robots, state, widths, supply_steps):
-    """Order the robots' actions into Enter-gated steps. Frames are made in playback order."""
+    """Order the robots' actions into steps. Frames are made in playback order."""
     def track(kind, tool):
         who = TOOL_ACTIONS[kind][0]
         frames, widths[who] = flatten(plans[(kind, tool)], robots[who], state, widths[who])
         return (who, frames)
 
-    def supply_track(index):
-        name, stages, _ = supply_steps[index]
+    def supply_track(key):
+        name, stages, _ = supply_steps[key]
         frames, _ = flatten(stages, robots["SupplyBot"], state, None)
         return name, ("SupplyBot", frames)
 
     first = [track("fetch", tools[0])]
     title = f"ToolBot takes the {tools[0]} off the pegboard"
-    if len(supply_steps) == 2:                                   # hardware needed: SupplyBot works alongside ToolBot
-        name, supply_frames = supply_track(0)
+    if supply_steps["hardware"]:                                 # nut / bolt needed: SupplyBot works alongside ToolBot
+        name, supply_frames = supply_track("hardware")
         first.append(supply_frames)
         title += f", while SupplyBot does this: {name}"
     steps = [make_step(title, first),
@@ -614,10 +679,41 @@ def build_schedule(tools, plans, robots, state, widths, supply_steps):
         use = [track("use", tool)] + ([track("fetch", nxt)] if nxt else [])
         steps.append(make_step(f"UR3e (real robot) {TASK_VERB.get(tool, 'works')} with the {tool}"
                                + (f", while ToolBot gets the {nxt} ready" if nxt else ""), use))
-        steps.append(make_step(f"TransferBot puts the used {tool} on the used-tools mark", [track("retire", tool)]))
+        retire = track("retire", tool)
+        retire_title = f"TransferBot puts the used {tool} on the used-tools mark"
+        if tool == "drill" and supply_steps["screw"]:            # the hole now exists: SupplyBot stands the screw in it
+            screw_name, screw_frames = supply_track("screw")
+            wait = find_stagger(robots, retire, screw_frames)
+            if wait is None:
+                print(f"  (TransferBot and SupplyBot would collide, so the screw goes in the hole after the "
+                      f"used {tool} is put away.)")
+                steps.append(make_step(retire_title, [retire]))
+                steps.append(make_step(f"SupplyBot: {screw_name}", [screw_frames]))
+            else:
+                if wait > 0:
+                    print(f"  (SupplyBot waits {wait:.1f} s before the screw so the two arms stay apart.)")
+                steps.append(make_step(f"{retire_title}, while SupplyBot does this: {screw_name}",
+                                       [retire, (screw_frames[0], delayed(screw_frames[1], wait))]))
+        else:
+            steps.append(make_step(retire_title, [retire]))
         back = track("return", tool)
         if nxt is None:
-            steps.append(make_step(f"ToolBot hangs the used {tool} back on the pegboard", [back]))
+            # The UR3e has nothing left to do and the hand-over square is empty, so SupplyBot can take the
+            # finished piece away while ToolBot hangs the last tool back (unless the arms would get in each other's way).
+            name, collect = supply_track("collect")
+            wait = find_stagger(robots, back, collect)
+            hang = f"ToolBot hangs the used {tool} back on the pegboard"
+            if wait is None:
+                print("  (ToolBot and SupplyBot would collide, so the finished piece is collected after the "
+                      f"{tool} is back on the pegboard.)")
+                steps.append(make_step(hang, [back]))
+                steps.append(make_step(f"SupplyBot: {name}", [collect], wait_msg=supply_steps["collect"][2]))
+            else:
+                if wait > 0:
+                    print(f"  (SupplyBot waits {wait:.1f} s before collecting so the two arms stay apart.)")
+                steps.append(make_step(f"{hang}, while SupplyBot does this: {name}",
+                                       [back, (collect[0], delayed(collect[1], wait))],
+                                       wait_msg=supply_steps["collect"][2]))
             continue
         deliver = track("deliver", nxt)
         wait = find_stagger(robots, deliver, back)           # TransferBot goes straight away, ToolBot may wait
@@ -631,8 +727,6 @@ def build_schedule(tools, plans, robots, state, widths, supply_steps):
                 print(f"  (ToolBot waits {wait:.1f} s before hanging the {tool} back so the two arms stay apart.)")
             steps.append(make_step(f"TransferBot carries the {nxt} to the real robot, while ToolBot hangs "
                                    f"the used {tool} back", [deliver, (back[0], delayed(back[1], wait))]))
-    name, collect = supply_track(len(supply_steps) - 1)
-    steps.append(make_step(f"SupplyBot: {name}", [collect], wait_msg=supply_steps[-1][2]))
     warn_idle_conflicts(steps, robots)
     return steps
 
@@ -678,18 +772,18 @@ def main():
                 return
             job = ask_job_type(options)
             tools = options[job]
+            sizes = ask_job(tools)
             print(f"\nPlanning {job} (this can take a minute)...")
-            plans, error = plan_job_tools(robots, tools)
+            plans, error = plan_job_tools(robots, tools, (sizes or {}).get("screw"))
             if plans is not None:
                 break
             print(f"  Cannot do '{job}': {error}.")
             del options[job]
-        sizes = ask_job()
     except EOFError:
         return
 
     print("\nPlanning SupplyBot...")
-    supply_steps = plan_supplybot(supply, sizes)
+    supply_steps = plan_supplybot(supply, sizes, idle_arms=[ur3e])
     if supply_steps is None:
         print("SupplyBot could not complete its task - see the messages above.")
         return
@@ -697,8 +791,11 @@ def main():
     # Track every movable object through the whole run, in playback order
     state = {tool: C.tool_start(tool) for tool in tools}
     state["wood"] = S.WOOD_START
+    if "drill" in tools:
+        state["hole"] = S.hole_hidden_pose()
     if sizes is not None:
-        state["nut"], state["bolt"] = S.nut_start(sizes["nut"]), S.bolt_start(sizes["bolt"])
+        for kind, size in S.hardware(sizes):
+            state[kind] = S.start_pose(kind, size)
     print("\nChecking that the arms stay clear of each other...")
     steps = build_schedule(tools, plans, robots, state, {"ToolBot": None, "TransferBot": OPEN_WIDTH,
                                                          "UR3e": None, "SupplyBot": None}, supply_steps)
@@ -706,7 +803,7 @@ def main():
     print(f"Planned robot motion: {total:.1f} s (playback speed x{PLAYBACK_SPEED})")
 
     env = launch_garage(tools)
-    movers = build_supply_scene(env, sizes)                 # nut, bolt, timber and the shelves
+    movers = build_supply_scene(env, sizes, S.hole_hidden_pose() if "drill" in tools else None)   # + the hidden hole
     for tool in tools:
         movers[tool] = ToolModel(f"tool_{tool}")
         movers[tool].add_to(env)
