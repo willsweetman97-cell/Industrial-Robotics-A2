@@ -12,6 +12,7 @@ import numpy as np
 from spatialmath import SE3
 
 import Garage
+import supply_layout as S
 
 TABLE_H = Garage.TABLE_H
 TOOL_Y = Garage.TOOL_FACE_Y - 0.02            # y of the tool bodies hanging on the pegboard
@@ -68,12 +69,29 @@ def _pose(columns, p):
     return SE3(M)
 
 
-def real_robot_path(tool):
+SCREW_TWIST_DEG = (20, -20, 20, -20)          # the screwdriver turns back and forth; the screw turns with it
+TIP_GAP = 0.002                               # the screwdriver tip stops this far above the screw head to start
+
+
+def screw_motion(size):
+    """[(screw pose before, screw pose after)] for each screwing stroke: it turns with the driver and sinks in."""
+    n = len(SCREW_TWIST_DEG)
+    depths = np.linspace(S.SEAT_DEPTH, S.screw_driven_depth(size), n + 1)
+    motion, prev = [], 0.0
+    for k, deg in enumerate(SCREW_TWIST_DEG):
+        angle = np.deg2rad(deg)
+        motion.append((S.screw_pose(size, depths[k], prev), S.screw_pose(size, depths[k + 1], angle)))
+        prev = angle
+    return motion
+
+
+def real_robot_path(tool, screw=None):
     """Tool-origin poses for the real robot's job on the timber.
 
     [0] is a pose clear above the start, [1] the start of the work, the rest are the strokes.
     Tool frames: saw blade edge = -x, handle along +z; drill chuck = +x, handle -z;
-    screwdriver tip = -z (see tools.py).
+    screwdriver tip = -z (see tools.py). screw = size of the screw standing in the drilled hole (screwdriver
+    only): the screwdriver then goes down onto its head and drives it in, otherwise it just twists on the mark.
     """
     cx, cy, cz = Garage.WOOD_CENTRE
     top = cz + Garage.WOOD_SIZE[2] / 2
@@ -90,6 +108,17 @@ def real_robot_path(tool):
         return [_pose(R, (px + 0.05, py, top + z)) for z in (0.22, 0.12, 0.085, 0.12, 0.085)]
     if tool == "screwdriver":             # tip down on the mark, twisted back and forth
         base = np.array([(-1, 0, 0), (0, -1, 0), (0, 0, 1)], float).T      # columns = the tool's x, y, z axes
+        if screw:                         # tip (0.12 m below the tool origin) on the head, following it down
+            def origin_z(depth):
+                return S.screw_head_top(screw, depth) + 0.12 + TIP_GAP
+            z0 = origin_z(S.SEAT_DEPTH)
+            path = [_pose(list(base.T), (px, py, z)) for z in (z0 + 0.10, z0 + 0.03, z0)]
+            depths = np.linspace(S.SEAT_DEPTH, S.screw_driven_depth(screw), len(SCREW_TWIST_DEG) + 1)
+            for k, angle in enumerate(SCREW_TWIST_DEG):
+                c, s_ = np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))
+                R = np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]]) @ base
+                path.append(_pose(list(R.T), (px, py, origin_z(depths[k + 1]))))
+            return path
         path = [_pose(list(base.T), (px, py, top + z)) for z in (0.24, 0.14, 0.12)]
         for k, angle in enumerate((20, -20, 20, -20)):
             c, s_ = np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))
