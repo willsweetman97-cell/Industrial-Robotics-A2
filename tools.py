@@ -1,6 +1,6 @@
 """Placeholder tool models built from boxes (hammer, screwdriver, saw).
 
-Author: [Your name]
+Author: Jake Salamon
 
 Each tool's frame origin is its GRIP POINT. The tool extends along -x of its own
 frame, so it hangs downward when its x-axis points up. Replace with real meshes later.
