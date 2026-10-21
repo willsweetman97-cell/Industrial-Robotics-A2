@@ -1,6 +1,6 @@
 """Layout constants for Supply Bot, built on the garage table layout (Garage.py).
 
-Author: [Your name]
+Author: Jake Salamon
 
 Supply Bot stands on the RED square (the one Garage.py calls "ur3e"), at the
 right-hand end of the 4.4 m table, facing -x (back along the table). It does two jobs:
@@ -8,10 +8,6 @@ right-hand end of the 4.4 m table, facing -x (back along the table). It does two
      their red boxes (four boxes: small/large nuts, small/large bolts) to the timber
   2. once the real robot has finished: carry the timber to the output area
 The four red supply boxes and the output box are switched ON (see the SHOW_* flags below):
-timber still move between the same spots, but no boxes are drawn.
-
-World frame is the garage frame (metres): x along the table, y toward the pegboard wall,
-z up, table top at TABLE_H. All sizes and positions are ESTIMATES - edit them here.
 """
 import numpy as np
 from spatialmath import SE3
