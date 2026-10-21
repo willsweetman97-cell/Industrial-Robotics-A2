@@ -1,6 +1,6 @@
 """Swift simulation: Robot 2 returns a tool from the bench to the board.
 
-Author: [Your name]
+Author: Jake Salamon
 
 Run:   python robot2_sim.py   (all project files sit in the same folder).
 
