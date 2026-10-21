@@ -1,18 +1,14 @@
 """Swift simulation: Supply Bot (red square) feeds the timber and clears the output.
 
-Author: [Your name]
+Author: Jake Salamon
 
 Run:   python supply_bot_sim.py   (all project files sit in the same folder)
 
 Uses the garage table layout from Garage.py (unchanged). On start it asks two questions:
   1. Does the real robot need a nut and bolt?  (if yes: which size nut, which size bolt)
   2. Does it need a screw?                     (if yes: which size)
-Then it supplies the chosen parts to the timber, waits for the real robot to finish
-(for now: you press Enter), and carries the finished timber to the output area.
-The red supply boxes and the output box are switched off for now (see the SHOW_* flags in
-supply_layout.py); the motion is the same, you just see the parts lying on the table.
-The arm is drawn as a capsule skeleton from the DH model.
-"""
+Then it supplies the chosen parts to the timber, waits for the real robot to finish and carries the finished timber to the output area.
+
 import sys
 import time
 from pathlib import Path
