@@ -2,9 +2,19 @@
 
 | Area | Files / modules | Author |
 |------|-----------------|--------|
-| Robot model 1 | `Robot 3 Code' | Jake Salamon |
-| Robot model 2 | `src/models/[file]` | [Name 2] |
-| Robot model 3 | `src/models/[file]` | [Name 3] |
+| SupplyBot | `ChainLayout.py' | Jake Salamon |
+| SupplyBot | `Robot2.py' | Jake Salamon |
+| SupplyBot | `Robot2_task.py' | Jake Salamon |
+| SupplyBot | `robot2_sim.py' | Jake Salamon |
+| SupplyBot | `supply_bot_sim.py' | Jake Salamon |
+| SupplyBot | `supply_layout.py' | Jake Salamon |
+| Main System | `draw_utils.py' | Jake Salamon |
+| Main System | `tools.py' | Jake Salamon |
+| TransferBot | `part_mover.py` | Will Sweetman |
+| TransferBot | `TransferBot.py` | Will Sweetman |
+| Main System | `Garage.py` | Will Sweetman |
+| ToolBot | `supplier_arm.py` | Muhammad Khan |
+| ToolBot | `ToolBot.py` | Muhammad Khan |
 | Workcell scene | `src/scene/` | [Name] |
 | Motion / trajectories | `src/motion/` | [Name] |
 | GUI | `src/gui/` | [Name] |
