@@ -9,7 +9,7 @@ MinionBots
 
 | Jake Salamon | 25825771 | quality checker | JakeSalamon1 |
 
-| Muhammad Suhaib Khan | 13581525 | Robot 2 | muhammadskhan-hue |
+| Muhammad Suhaib Khan | 13581525 | ToolBot | muhammadskhan-hue |
 
 | Will Sweetman | 26089502 | part mover | willsweetman97 |
 
