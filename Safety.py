@@ -1,6 +1,6 @@
 """Safety state machine for the workcell (teaching/prototyping demo, NOT a certified safety system).
 
-Author: [Your name]
+Author: Muhammad / William
 
 The rules (all event driven - nothing here loops or waits):
   * An e-stop (simulated button OR the physical PLC mushroom button), a broken light curtain, or a
