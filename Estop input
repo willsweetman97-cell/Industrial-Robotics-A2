@@ -1,6 +1,6 @@
 """Emergency-stop inputs: the on-screen (simulated) button and the physical PLC mushroom button.
 
-Author: [Your name]
+Author: William / Muhammad
 
 The physical e-stop in the teaching workcell is wired to the PLC. This file reads it over Modbus TCP
 (the most common PLC protocol; needs `pip install pymodbus`). If your PLC uses something else
