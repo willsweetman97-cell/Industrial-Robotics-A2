@@ -1,6 +1,6 @@
 """One big simulation: ToolBot, TransferBot, the UR3e and SupplyBot working a tool pipeline.
 
-Author: Jake Salamon
+Author: [Your name]
 
 Run:   python big_sim.py   (all project files sit in the same folder)
 
@@ -36,6 +36,7 @@ import ChainLayout as C
 import robot2_task as _task
 import supply_layout as S
 import tools as _tools
+import visual_servo as VS
 from robot2_sim import ArmDrawing
 from robot2_task import (DT, _ik_candidates, _segment_distance, arm_collision, arm_points, hold,
                          joint_move, path_collision_free, plan_joint_move, quintic, rmrc_line,
@@ -94,6 +95,7 @@ class Planner:
         """avoid: skeletons (lists of points, see arm_points) of arms standing still that this arm must keep clear of."""
         self.robot, self.gripper = robot, gripper
         self.avoid = avoid or []
+        self.servo_logs = []
         self.q = np.array(q_home, dtype=float)
         self.home = self.q.copy()
         self.stages = []
@@ -197,10 +199,34 @@ class Planner:
     def go_home(self):
         self.add("home", joint_move(self.q, self.home, speed=JOINT_SPEED))
 
-    def move_object(self, name, start, end, grasp_rot, hover_src, hover_dst, attached=()):
+    def _servo_to(self, hover_dst, points, carry):
+        """Visual servoing above the target: start from a deliberately imperfect hover, then let the camera fix it.
+
+        The arm is at the ideal hover pose; what the camera sees from there is the goal image. The arm is then
+        moved off by a few millimetres and a few degrees (a simulated positioning error) and IBVS steers it back
+        until the goal image is reached.
+        """
+        goal_xy, _ = VS.project(self.robot.fkine(self.q), points)
+        wrong = VS.perturb(self.robot.fkine(self.q))
+        if not self.joint_to("approach the hole (simulated 1 cm positioning error)", wrong, **carry):
+            return False
+        traj, log = VS.ibvs(self.robot, self.q, points, goal_xy)
+        miss = float(log["error_px"][-1])
+        print(f"    visual servoing: image error {log['error_px'][0]:.1f} px -> {miss:.2f} px "
+              f"in {len(traj) * DT:.1f} s")
+        if miss > 2.0:
+            print("    visual servoing did not converge")
+            return False
+        self.servo_logs.append(log)
+        self.add("visual servoing: centre the screw over the hole", traj, **carry)
+        return True
+
+    def move_object(self, name, start, end, grasp_rot, hover_src, hover_dst, attached=(), servo_points=None):
         """Pick the object at pose `start`, carry it, set it down at pose `end`.
 
         grasp_rot: gripper orientation relative to the object frame (TCP = object * grasp_rot).
+        servo_points: world points the gripper camera sees at the drop-off (e.g. a hole's rim); if given, the
+        last part of the approach is done by visual servoing before the object is lowered.
         """
         grasp, drop, tcp_obj = start * grasp_rot, end * grasp_rot, grasp_rot.inv()
         closed, opened = (CLOSED_WIDTH, OPEN_WIDTH) if self.gripper else (None, None)
@@ -214,6 +240,13 @@ class Planner:
         if not self.descend(f"carry {name}", above(drop, hover_dst), f"lower {name}", drop,
                             joint_extra=carry, line_extra=carry):
             return False
+        if servo_points is not None:
+            self.stages.pop()                          # take the open-loop "lower" back out ...
+            self.q = self.stages[-1]["traj"][-1]
+            if not self._servo_to(hover_dst, servo_points, carry):           # ... servo over the target ...
+                return False
+            if not self.line_to(f"lower {name}", drop, **carry):             # ... then lower from the servoed pose
+                return False
         placed = self.robot.fkine(self.q) * tcp_obj
         print(f"    {name}: placement error before final settle "
               f"{np.linalg.norm(placed.t - end.t) * 1000:.1f} mm")
@@ -343,8 +376,11 @@ def _plan_supplybot(robot, sizes, avoid):
             size = sizes["screw"]
             p = Planner(robot, robot.home_q, avoid=avoid)
             if not p.move_object("screw", S.start_pose("screw", size), S.on_wood("screw", size),
-                                 S.grasp_rot("screw", size), SMALL_HOVER, SMALL_HOVER):
+                                 S.grasp_rot("screw", size), SMALL_HOVER, SMALL_HOVER,
+                                 servo_points=VS.rim_points(S.hole_pose().t)):
                 return None
+            if p.servo_logs and VS.save_plot(p.servo_logs, str(Path(__file__).resolve().parent / "visual_servoing.png")):
+                print("    (feature paths and error saved to visual_servoing.png)")
             p.go_home()
             steps["screw"] = (f"put the {size} screw in the drilled hole", p.stages, None)
         attached = tuple(kind for kind, _ in S.hardware(sizes))
@@ -750,6 +786,25 @@ def warn_idle_conflicts(steps, robots):
                         break
 
 
+WAIT_LABEL = "waiting for the other arm to clear"
+
+
+def run_step_showcase(env, actors, movers, rendered, step):
+    """Showcase mode: play each robot's task on its own, pausing for Enter before each one.
+
+    A step that normally has several robots working together is split up, so the group can explain one
+    robot at a time. Waiting frames added to keep two arms apart are skipped, since the arms no longer overlap.
+    """
+    for name, frames in step["tracks"]:
+        frames = [f for f in frames if f[2] != WAIT_LABEL]
+        if not frames:
+            continue
+        input(f"  Press Enter to show {name}... ")
+        if not play(env, actors, movers, [(name, frames)], rendered):
+            return False
+    return True
+
+
 def run_step(env, actors, movers, rendered, step):
     """Play one step (one or more robots together). Returns False if Swift disconnects."""
     return play(env, actors, movers, step["tracks"], rendered) if step["tracks"] else True
@@ -765,6 +820,9 @@ def main():
 
     try:
         print("\n--- Job setup ---")
+        showcase = ask_choice("Showcase each robot one at a time (pause for Enter before each task)? "
+                              "(y = showcase each robot, n = full system as normal): ",
+                              ["y", "yes", "n", "no"]) in ("y", "yes")
         options = dict(C.JOBS)
         while True:
             if not options:
@@ -818,11 +876,15 @@ def main():
     env.step(DT)
 
     rendered = {}
-    print("\nStarting in 3 s - keep the Swift tab open and visible. The whole job now runs in one go.")
-    time.sleep(3)
+    if showcase:
+        print("\nShowcase mode: keep the Swift tab open and visible. Each robot's task waits for you to press Enter.")
+    else:
+        print("\nStarting in 3 s - keep the Swift tab open and visible. The whole job now runs in one go.")
+        time.sleep(3)
+    play_step = run_step_showcase if showcase else run_step
     for step in steps:
         print(f"\n{step['title']}")
-        if not run_step(env, actors, movers, rendered, step):
+        if not play_step(env, actors, movers, rendered, step):
             env.hold()
             return
     print("\nAll done. Close the Swift window or press Ctrl+C to exit.")
