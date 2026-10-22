@@ -43,42 +43,36 @@ Goal: a runnable skeleton that every member can build on.
 - [X] Each member: kinematic parameters sourced/justified for their personal robot; tutor sign-off on the model
 - [X] Each member: first working model in `src/models/` (DH parameters, joint limits, correct `fkine`)
 - [X] Scene v1: tool rack, workpiece, work surfaces and robot bases placed
-- [ ] E-stop state machine designed (states: RUNNING, STOPPED/FAULT, RESET-ACKNOWLEDGED, READY, RESUME) – event/timer driven, no busy-wait loops
-- [ ] Real robot: confirm availability, induction status, booking times (drop-ins TBC)
+- [X] E-stop state machine designed (states: RUNNING, STOPPED/FAULT, RESET-ACKNOWLEDGED, READY, RESUME) – event/timer driven, no busy-wait loops
 - [ ] Code standard and `docs/CONTRIBUTIONS.md` filled in
 
 **Exit check (Sun 11 Oct):** three models appear in Swift in the shared scene and can move to a joint configuration.
 
 ### Phase 2 – Core capability (Mon 12 – Sun 18 Oct)
 Goal: each subsystem works on its own.
-- [ ] Higher-fidelity visuals for each personal model (geometry, colour, proportions better than Assignment 1)
-- [ ] IK and joint-space / Cartesian trajectories for all three robots
-- [ ] RMRC for the cutting stroke (singularity/manipulability handling)
-- [ ] Pick-and-place sequence: select tool → hand over → deliver to working robot (multiple poses)
-- [ ] Support for a final joint state supplied during marking
+- [X] Higher-fidelity visuals for each personal model (geometry, colour, proportions better than Assignment 1)
+- [X] IK and joint-space / Cartesian trajectories for all three robots
+- [X] RMRC for the cutting stroke (singularity/manipulability handling)
+- [X] Pick-and-place sequence: select tool → hand over → deliver to working robot (multiple poses)
 - [ ] GUI: joint jogging, Cartesian x/y/z jogging, selected-robot switching, state and fault display
 - [ ] Safety v1: simulated GUI e-stop with deliberate reset then separate resume
 - [ ] Safety v1: light curtain / unsafe-zone asynchronous trigger
 - [ ] Safety v1: collision checking against an object placed in the planned path (stop first, then re-plan/avoid)
 - [ ] Safety equipment models placed to match the risk assessment
-- [ ] Real robot: first supervised, low-speed motion from Python
-- [ ] Physical e-stop input wired/read in `src/hardware/` (if PLC e-stop available)
-- [ ] Capture raw footage (screen recordings + real robot) as features land
+- [X] Real robot: first supervised, low-speed motion from Python
 
 **Exit check (Sun 18 Oct):** end-to-end sequence runs in simulation without safety features; each safety feature demonstrable individually.
 
 ### Phase 3 – Promo video, integration and hardening (Mon 12 – Fri 16 Oct, overlaps Phase 2)
 Promo video runs in parallel so it does not block development.
-- [ ] Mon 12 Oct: script and storyboard for the exactly-60-second video
-- [ ] Wed 14 Oct: record footage from whatever is working; narration/captions
-- [ ] Thu 15 Oct: edit, check duration is exactly 60 s, upload to UTS student YouTube as Unlisted
-- [ ] **Fri 16 Oct, before 21:00:** submit URL on Canvas and post the same URL in the A2 Teams channel
+- [X] Mon 12 Oct: script and storyboard for the exactly-60-second video
+- [X] Wed 14 Oct: record footage from whatever is working; narration/captions
+- [X] Thu 15 Oct: edit, check duration is exactly 60 s, upload to UTS student YouTube as Unlisted
+- [X] **Fri 16 Oct, before 21:00:** submit URL on Canvas and post the same URL in the A2 Teams channel
 
 ### Phase 4 – Integration, freeze and rehearsal (Mon 19 – Thu 22 Oct)
-- [ ] Mon 19 Oct: **feature freeze** – bug fixes only after this point
-- [ ] Mon 19 – Tue 20 Oct: integrate GUI, motion, safety and real robot into one run; fix coordinate frame mismatches
-- [ ] Tue 20 Oct: record real-robot evidence video (backup for anything that cannot run live online); include physical e-stop demo
-- [ ] Wed 21 Oct: full dress rehearsal of the demo against the marking criteria (section 4); each member rehearses explaining their own model and code
+- [X] Mon 19 Oct: **feature freeze** – bug fixes only after this point
+- [X] Mon 19 – Tue 20 Oct: integrate GUI, motion, safety and real robot into one run; fix coordinate frame mismatches
 - [ ] Wed 21 Oct: draft final video script; record voice-over and any extra footage
 - [ ] Thu 22 Oct: second rehearsal, fix remaining issues, tag a release (`v1.0-demo`) on `main`
 - [ ] Thu 22 Oct: confirm tools, internet, cameras and screen-share work for all members
@@ -117,7 +111,7 @@ Bonuses can only recover marks lost within Assignment 2 (cap stays at 35%). Deci
 - **PLC (up to 2):** needs a real PLC-driven sequence, an additional sensor that changes the sequence, a PLC/Python handshake with timeouts, and sensor/e-stop work included in the approved Risk Assessment and SWMS *before* energising the cell.
 - **RGB-D (up to 2):** needs real RGB-D data that changes robot behaviour (calibration, mapping, recognition), not just a displayed stream.
 
-Decision: **[PLC: yes/no] [RGB-D: yes/no]**
+Decision: **[PLC:no] [RGB-D:no]**
 
 ## 7. Risks and mitigations
 
