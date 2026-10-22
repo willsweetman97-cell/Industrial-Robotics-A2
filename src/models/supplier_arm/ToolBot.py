@@ -11,6 +11,7 @@ Author: Muhammad Suhaib Khan
 
 import sys
 import os
+# Let Python find Garage.py in the repo root (three folders up)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 import numpy as np
@@ -18,7 +19,7 @@ import roboticstoolbox as rtb
 from roboticstoolbox import DHRobot, RevoluteDH
 from spatialmath import SE3
 import spatialgeometry as sg
-from Garage import build_garage
+from Garage import build_garage          # shared scene: table, pegboard, tools, base poses
 
 # Compatibility shim: swift-sim 1.1.0 calls shape._update_pyb(), which newer
 # spatialgeometry versions renamed. The method only syncs the optional pybullet
@@ -26,36 +27,40 @@ from Garage import build_garage
 if not hasattr(sg.Shape, "_update_pyb"):
     sg.Shape._update_pyb = lambda self: None
 
-LINK_COLOUR = (0.15, 0.45, 0.9, 1.0)    # matches the selector base marker
-JOINT_COLOUR = (0.1, 0.1, 0.1, 1.0)
-TOOL_COLOUR = (0.95, 0.5, 0.1, 1.0)
-HANDOFF_ZONE = SE3(-0.925, -0.08, 0.75)
+# --- Appearance and fixed targets ---
+LINK_COLOUR = (0.15, 0.45, 0.9, 1.0)     # blue, matches the selector base marker
+JOINT_COLOUR = (0.1, 0.1, 0.1, 1.0)      # black joint spheres
+TOOL_COLOUR = (0.95, 0.5, 0.1, 1.0)      # orange block shown while carrying a tool
+HANDOFF_ZONE = SE3(-0.925, -0.08, 0.75)  # green square where tools are dropped off
 
 
+# --- The robot model (what is individually marked) ---
 class SupplierArm(DHRobot):
     def __init__(self):
+        # Standard DH: one RevoluteDH per joint (d = offset along z, a = link length, alpha = twist)
         links = [
-            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),
-            RevoluteDH(d=0.00, a=0.50, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),
-            RevoluteDH(d=0.00, a=0.45, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),
-            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.pi, np.pi]),
-            RevoluteDH(d=0.00, a=0.00, alpha=np.pi / 2,  qlim=[-np.deg2rad(120), np.deg2rad(120)]),
-            RevoluteDH(d=0.10, a=0.00, alpha=0,          qlim=[-2 * np.pi, 2 * np.pi]),
+            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.deg2rad(170), np.deg2rad(170)]),  # J1 base rotation, 0.15 m riser
+            RevoluteDH(d=0.00, a=0.50, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),  # J2 shoulder, 0.50 m upper arm
+            RevoluteDH(d=0.00, a=0.45, alpha=0,          qlim=[-np.deg2rad(150), np.deg2rad(150)]),  # J3 elbow, 0.45 m forearm
+            RevoluteDH(d=0.15, a=0.00, alpha=-np.pi / 2, qlim=[-np.pi, np.pi]),                      # J4 wrist roll
+            RevoluteDH(d=0.00, a=0.00, alpha=np.pi / 2,  qlim=[-np.deg2rad(120), np.deg2rad(120)]),  # J5 wrist pitch
+            RevoluteDH(d=0.10, a=0.00, alpha=0,          qlim=[-2 * np.pi, 2 * np.pi]),              # J6 tool flange spin
         ]
         super().__init__(links, name="SupplierArm")
-        self.qz = np.zeros(6)
-        self.q_home = np.deg2rad([0, -30, 60, 0, 60, 0])
+        self.qz = np.zeros(6)                              # all joints at zero
+        self.q_home = np.deg2rad([0, -30, 60, 0, 60, 0])  # safe ready pose
 
 
+# --- Drawing helpers (a plain DH model has no 3D shape, so we draw one) ---
 def _link_pose(p0, p1):
     """Pose at the midpoint of p0->p1 with local z along the link, plus the link length."""
     v = p1 - p0
     length = np.linalg.norm(v)
-    if length < 1e-6:
+    if length < 1e-6:                    # joints at the same point: nothing to draw
         return None, 0.0
-    z = v / length
+    z = v / length                       # cylinder axis points from p0 to p1
     ref = np.array([1.0, 0.0, 0.0]) if abs(z[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
-    x = np.cross(ref, z)
+    x = np.cross(ref, z)                 # build x and y perpendicular to z
     x /= np.linalg.norm(x)
     y = np.cross(z, x)
     T = np.eye(4)
@@ -68,9 +73,9 @@ class SupplierArmVisual:
 
     def __init__(self, robot, env):
         self.robot = robot
-        pts = [f.t for f in robot.fkine_all(robot.q)]
+        pts = [f.t for f in robot.fkine_all(robot.q)]   # FK: position of every joint frame
         self.links = []
-        for i in range(len(pts) - 1):
+        for i in range(len(pts) - 1):                   # one cylinder between each pair of joints
             pose, length = _link_pose(pts[i], pts[i + 1])
             if pose is None:
                 self.links.append(None)
@@ -80,13 +85,14 @@ class SupplierArmVisual:
             env.add(c)
             self.links.append(c)
         self.joints = []
-        for p in pts:
+        for p in pts:                                   # one sphere at each joint
             s = sg.Sphere(radius=0.055, color=JOINT_COLOUR)
             s.T = SE3(*p).A
             env.add(s)
             self.joints.append(s)
 
     def update(self, q):
+        """Move every cylinder and sphere to match joint angles q."""
         pts = [f.t for f in self.robot.fkine_all(q)]
         for i, c in enumerate(self.links):
             if c is not None:
@@ -96,43 +102,47 @@ class SupplierArmVisual:
             s.T = SE3(*p).A
 
 
+# --- Motion helpers ---
 def solve_ik(robot, target, q0):
     """Position-only IK (orientation free). Returns joint angles or None if unreachable."""
-    sol = robot.ikine_LM(target, q0=q0, mask=[1, 1, 1, 0, 0, 0])
+    sol = robot.ikine_LM(target, q0=q0, mask=[1, 1, 1, 0, 0, 0])  # mask: match x, y, z only
     return sol.q if sol.success else None
 
 
 def move(robot, vis, env, q_target, steps=60, carried=None):
     """Smooth joint-space (quintic) trajectory from the current pose to q_target."""
-    for q in rtb.jtraj(robot.q, q_target, steps).q:
+    for q in rtb.jtraj(robot.q, q_target, steps).q:  # jtraj = smooth start and stop
         robot.q = q
-        vis.update(q)
+        vis.update(q)                                 # redraw the arm
         if carried is not None:
-            carried.T = robot.fkine(q).A
-        env.step(0.03)
+            carried.T = robot.fkine(q).A              # carried tool follows the end-effector
+        env.step(0.03)                                # advance Swift one frame
 
 
+# --- Demo: run this file on its own to see the delivery task ---
 if __name__ == "__main__":
     robot = SupplierArm()
-    print(robot)
+    print(robot)                                     # prints the DH table
 
-    env, poses = build_garage(launch=True, realtime=True)
-    robot.base = poses["selector"]
+    env, poses = build_garage(launch=True, realtime=True)  # opens Swift with the shared scene
+    robot.base = poses["selector"]                   # bolt the arm onto the blue base marker
     robot.q = robot.q_home
     vis = SupplierArmVisual(robot, env)
     env.step()
 
+    # Which pegboard tools can this arm reach?
     print("\nReachability check, position-only:")
     for name, pose in poses["tools"].items():
         ok = solve_ik(robot, SE3(pose.t), robot.q_home) is not None
         print(f"  {name:12s}: {'OK' if ok else 'out of reach'}")
 
+    # Task: fetch the drill and deliver it to the handoff zone
     tool_name = "drill"
     tool_pos = poses["tools"][tool_name].t
     waypoints = [
-        ("approach tool", SE3(tool_pos[0], tool_pos[1] - 0.12, tool_pos[2])),
-        ("grasp tool",    SE3(*tool_pos)),
-        ("retract",       SE3(tool_pos[0], tool_pos[1] - 0.15, tool_pos[2])),
+        ("approach tool", SE3(tool_pos[0], tool_pos[1] - 0.12, tool_pos[2])),  # just in front of the tool
+        ("grasp tool",    SE3(*tool_pos)),                                     # at the tool
+        ("retract",       SE3(tool_pos[0], tool_pos[1] - 0.15, tool_pos[2])),  # pull it off the board
         ("above handoff", SE3(HANDOFF_ZONE.t[0], HANDOFF_ZONE.t[1], HANDOFF_ZONE.t[2] + 0.20)),
         ("place tool",    SE3(HANDOFF_ZONE.t[0], HANDOFF_ZONE.t[1], HANDOFF_ZONE.t[2] + 0.04)),
         ("clear handoff", SE3(HANDOFF_ZONE.t[0], HANDOFF_ZONE.t[1], HANDOFF_ZONE.t[2] + 0.20)),
@@ -142,7 +152,7 @@ if __name__ == "__main__":
     q_prev = robot.q
     print(f"\nDelivering {tool_name} to the handoff zone:")
     for label, target in waypoints:
-        q_goal = solve_ik(robot, target, q_prev)
+        q_goal = solve_ik(robot, target, q_prev)     # start IK from the last pose for smooth motion
         if q_goal is None:
             print(f"  {label}: unreachable, stopping")
             break
@@ -150,15 +160,15 @@ if __name__ == "__main__":
         move(robot, vis, env, q_goal, carried=carried)
         q_prev = q_goal
 
-        if label == "grasp tool":
+        if label == "grasp tool":                    # "pick up": spawn the tool block at the gripper
             carried = sg.Cuboid(scale=[0.06, 0.06, 0.12], color=TOOL_COLOUR)
             carried.T = robot.fkine(robot.q).A
             env.add(carried)
-        elif label == "place tool":
+        elif label == "place tool":                  # "put down": stop it following the arm
             carried = None
 
     print("  returning home")
     move(robot, vis, env, robot.q_home)
 
     print("\nDone. Close with Ctrl+C in the terminal.")
-    env.hold()
+    env.hold()                                       # keep Swift open
